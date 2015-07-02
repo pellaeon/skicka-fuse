@@ -215,6 +215,7 @@ func (f *FS) Root() (fs.Node, error) {
 	gd_file, err := f.gd.GetFile("/")
 	return Node{
 		sk_file: gd_file,
+		fs:      f,
 	}, err
 }
 
@@ -222,6 +223,7 @@ var _ fs.Node = (*Node)(nil)
 
 type Node struct {
 	sk_file *gdrive.File
+	fs      *FS
 }
 
 func (n Node) Attr(ctx context.Context, attr *fuse.Attr) error {
@@ -240,4 +242,19 @@ func (n Node) Attr(ctx context.Context, attr *fuse.Attr) error {
 	attr.Nlink = 0
 
 	return nil
+}
+
+var _ fs.NodeRequestLookuper = (*Node)(nil)
+
+func (n Node) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
+	path := req.Name
+	gd_file, err := n.fs.gd.GetFile(path)
+	if err != nil {
+		log.Fatal(err)
+		return nil, fuse.ENOENT
+	}
+	return Node{
+		sk_file: gd_file,
+		fs:      n.fs,
+	}, nil
 }
