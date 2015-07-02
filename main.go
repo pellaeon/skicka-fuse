@@ -213,20 +213,45 @@ var _ fs.FS = (*FS)(nil)
 
 func (f *FS) Root() (fs.Node, error) {
 	gd_file, err := f.gd.GetFile("/")
-	return Node{
+	return Dir{
 		sk_file: gd_file,
 		fs:      f,
 	}, err
 }
 
-var _ fs.Node = (*Node)(nil)
+var _ fs.Node = (*Dir)(nil)
 
-type Node struct {
+type Dir struct {
 	sk_file *gdrive.File
 	fs      *FS
 }
 
-func (n Node) Attr(ctx context.Context, attr *fuse.Attr) error {
+func (n Dir) Attr(ctx context.Context, attr *fuse.Attr) error {
+	var sum uint64
+	for _, c := range n.sk_file.Id {
+		sum += uint64(c)
+	}
+	attr.Inode = sum
+	attr.Size = 4096 // XXX
+	attr.Blocks = 0
+	attr.Atime = n.sk_file.ModTime
+	attr.Mtime = n.sk_file.ModTime
+	attr.Ctime = n.sk_file.ModTime
+	attr.Crtime = n.sk_file.ModTime
+	attr.Mode = os.ModeDir | 0755
+	attr.Nlink = 0
+
+	return nil
+}
+
+var _ fs.Node = (*File)(nil)
+
+type File struct {
+	sk_file *gdrive.File
+	fs      *FS
+}
+
+func (n File) Attr(ctx context.Context, attr *fuse.Attr) error {
 	var sum uint64
 	for _, c := range n.sk_file.Id {
 		sum += uint64(c)
@@ -244,17 +269,24 @@ func (n Node) Attr(ctx context.Context, attr *fuse.Attr) error {
 	return nil
 }
 
-var _ fs.NodeRequestLookuper = (*Node)(nil)
+var _ fs.NodeRequestLookuper = (*Dir)(nil)
 
-func (n Node) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
+func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
 	path := req.Name
 	gd_file, err := n.fs.gd.GetFile(path)
 	if err != nil {
 		log.Fatal(err)
 		return nil, fuse.ENOENT
 	}
-	return Node{
-		sk_file: gd_file,
-		fs:      n.fs,
-	}, nil
+	if gd_file.IsFolder() {
+		return Dir{
+			sk_file: gd_file,
+			fs:      n.fs,
+		}, nil
+	} else {
+		return File{
+			sk_file: gd_file,
+			fs:      n.fs,
+		}, nil
+	}
 }
