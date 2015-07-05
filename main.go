@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -18,7 +19,7 @@ import (
 	skicka "github.com/pellaeon/skicka"
 	"github.com/pellaeon/skicka/gdrive"
 
-	"github.com/tideland/goas/v3/logger"
+	"github.com/pellaeon/goas/v3/logger"
 )
 
 ///////////////////////////////////////////////////////////////////////////
@@ -100,7 +101,7 @@ func userHomeDir() string {
 }
 
 func main() {
-	l := logger.NewGoLogger()
+	l := logger.NewStandardTimeLogger(os.Stdout, time.StampMicro)
 	logger.SetLogger(l)
 	logger.SetLevel(logger.LevelDebug)
 	log.SetFlags(0)
