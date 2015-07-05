@@ -188,7 +188,7 @@ func main() {
 
 	c, err := fuse.Mount(mountpoint)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Mount failed: %v", err)
 	}
 	defer c.Close()
 
@@ -196,13 +196,13 @@ func main() {
 		gd: gd,
 	}
 	if err := fs.Serve(c, filesys); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Serve failed: %v", err)
 	}
 
 	// check if the mount process has an error to report
 	<-c.Ready
 	if err := c.MountError; err != nil {
-		log.Fatal(err)
+		log.Fatalf("mount process error: %v", err)
 	}
 }
 
@@ -249,6 +249,9 @@ var _ fs.HandleReadDirAller = (*Dir)(nil)
 
 func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	files_in_folder, err := d.fs.gd.GetFilesInFolder(d.sk_file.Path)
+	if err != nil {
+		log.Fatalf("ReadDirAll failed: %v", err)
+	}
 	var res []fuse.Dirent
 	for _, file := range files_in_folder {
 		var de fuse.Dirent
@@ -299,7 +302,7 @@ func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.Loo
 	path := req.Name
 	gd_file, err := n.fs.gd.GetFile(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Lookup GetFile failed: %v", err)
 		return nil, fuse.ENOENT
 	}
 	if gd_file.IsFolder() {
@@ -341,7 +344,13 @@ var _ fs.HandleReader = (*FileHandle)(nil)
 func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	buf := make([]byte, req.Size)
 	reader, err := gd.GetFileContents(fh.sk_file)
+	if err != nil {
+		log.Fatalf("FileHandle Read GetFileContents failed: %v", err)
+	}
 	n, err := reader.Read(buf)
+	if err != nil {
+		log.Fatalf("Filehandle Read reader.Read failed: %v", err)
+	}
 	resp.Data = buf[:n]
 	return err
 }
