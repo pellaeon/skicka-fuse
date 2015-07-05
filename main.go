@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -242,6 +243,29 @@ func (n Dir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	attr.Nlink = 0
 
 	return nil
+}
+
+var _ fs.HandleReadDirAller = (*Dir)(nil)
+
+func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	files_in_folder, err := d.fs.gd.GetFilesInFolder(d.sk_file.Path)
+	var res []fuse.Dirent
+	for _, file := range files_in_folder {
+		var de fuse.Dirent
+		de.Name = file.Path[strings.LastIndex(file.Path, "/")+1:]
+		if file.IsFolder() {
+			de.Type = fuse.DT_Dir
+		} else {
+			de.Type = fuse.DT_File
+		}
+		sum := uint64(0)
+		for _, c := range file.Id {
+			sum += uint64(c)
+		}
+		de.Inode = sum
+		res = append(res, de)
+	}
+	return res, err
 }
 
 var _ fs.Node = (*File)(nil)
