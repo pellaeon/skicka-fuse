@@ -219,6 +219,9 @@ var _ fs.FS = (*FS)(nil)
 
 func (f *FS) Root() (fs.Node, error) {
 	gd_file, err := f.gd.GetFile("/")
+	if err != nil {
+		logger.Errorf("FS Root() : %v", err)
+	}
 	return Dir{
 		sk_file: gd_file,
 		fs:      f,
