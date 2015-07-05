@@ -276,7 +276,7 @@ type File struct {
 }
 
 func (n File) Attr(ctx context.Context, attr *fuse.Attr) error {
-	var sum uint64
+	sum := uint64(0)
 	for _, c := range n.sk_file.Id {
 		sum += uint64(c)
 	}
