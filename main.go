@@ -305,6 +305,7 @@ var _ fs.NodeRequestLookuper = (*Dir)(nil)
 
 func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
 	path := req.Name
+	logger.Debugf("req.Name= " + req.Name)
 	gd_file, err := n.fs.gd.GetFile(path)
 	if err != nil {
 		log.Fatalf("Lookup GetFile failed: %v", err)
