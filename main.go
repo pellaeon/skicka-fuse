@@ -290,3 +290,34 @@ func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.Loo
 		}, nil
 	}
 }
+
+var _ fs.NodeOpener = (*File)(nil)
+
+func (n File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	resp.Flags |= fuse.OpenNonSeekable
+	return &FileHandle{
+		sk_file: n.sk_file,
+	}, nil
+}
+
+var _ fs.Handle = (*FileHandle)(nil)
+
+type FileHandle struct {
+	sk_file *gdrive.File
+}
+
+var _ fs.HandleReleaser = (*FileHandle)(nil)
+
+func (fh *FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	return nil
+}
+
+var _ fs.HandleReader = (*FileHandle)(nil)
+
+func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	buf := make([]byte, req.Size)
+	reader, err := gd.GetFileContents(fh.sk_file)
+	n, err := reader.Read(buf)
+	resp.Data = buf[:n]
+	return err
+}
