@@ -17,6 +17,8 @@ import (
 
 	skicka "github.com/pellaeon/skicka"
 	"github.com/pellaeon/skicka/gdrive"
+
+	"github.com/tideland/goas/v3/logger"
 )
 
 ///////////////////////////////////////////////////////////////////////////
@@ -98,6 +100,9 @@ func userHomeDir() string {
 }
 
 func main() {
+	l := logger.NewGoLogger()
+	logger.SetLogger(l)
+	logger.SetLevel(logger.LevelDebug)
 	log.SetFlags(0)
 	log.SetPrefix(progName + ": ")
 
