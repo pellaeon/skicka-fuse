@@ -19,6 +19,7 @@ type File struct {
 
 func (n File) Attr(ctx context.Context, attr *fuse.Attr) error {
 	logger.Debugf("%s.Attr()", n.sk_file.Path)
+	go SingleUpdateMetadataCache()
 	sum := uint64(0)
 	for _, c := range n.sk_file.Id {
 		sum += uint64(c)
@@ -61,6 +62,7 @@ var _ fs.HandleReader = (*FileHandle)(nil)
 
 func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	logger.Debugf("FileHandle Read()")
+	go SingleUpdateMetadataCache()
 	buf := make([]byte, req.Size)
 	reader, err := gd.GetFileContents(fh.sk_file)
 	if err != nil {

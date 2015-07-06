@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
@@ -27,6 +28,7 @@ import (
 const BLKSIZE = 4096
 
 var progName = filepath.Base(os.Args[0])
+var metadataCacheFilename *string
 
 type debugging bool
 
@@ -116,7 +118,7 @@ func main() {
 	configFilename := flag.String("config",
 		filepath.Join(home, ".skicka.config"),
 		"Configuration file")
-	metadataCacheFilename := flag.String("metadata-cache-file",
+	metadataCacheFilename = flag.String("metadata-cache-file",
 		filepath.Join(home, "/.skicka.metadata.cache"),
 		"Filename for local cache of Google Drive file metadata")
 	nw := flag.Int("num-threads", 4, "Number of threads to use for uploads/downloads")
@@ -248,4 +250,21 @@ func (fs *FS) Statfs(ctx context.Context, req *fuse.StatfsRequest, resp *fuse.St
 	resp.Frsize = BLKSIZE
 	req.Respond(resp)
 	return err
+}
+
+// Update metadata cache, if another call comes within 20 seconds it will be discarded
+func SingleUpdateMetadataCache() {
+	if updatingCache == 1 {
+		//logger.Debugf("Skip metadata cache update")
+		return
+	} else {
+		atomic.AddUint32(&updatingCache, 1)
+		logger.Infof("Updating metadata cache in background")
+		err := gd.UpdateMetadataCache(*metadataCacheFilename)
+		if err != nil {
+			logger.Errorf("Update metadata cache failed: %v", err)
+		}
+		time.Sleep(20 * time.Second)
+		atomic.AddUint32(&updatingCache, ^uint32(0))
+	}
 }

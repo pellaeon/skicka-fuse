@@ -14,6 +14,8 @@ import (
 
 var _ fs.Node = (*Dir)(nil)
 
+var updatingCache = uint32(0)
+
 type Dir struct {
 	sk_file *gdrive.File
 	fs      *FS
@@ -21,6 +23,7 @@ type Dir struct {
 
 func (n Dir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	logger.Debugf("%s .Attr()", n.sk_file.Path)
+	go SingleUpdateMetadataCache()
 	var sum uint64
 	for _, c := range n.sk_file.Id {
 		sum += uint64(c)
@@ -47,6 +50,7 @@ var _ fs.HandleReadDirAller = (*DirHandle)(nil)
 
 func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	logger.Debugf("ReadDirAll %s", dh.sk_file.Path)
+	go SingleUpdateMetadataCache()
 	files_in_folder, err := gd.GetFilesInFolder(dh.sk_file.Path)
 	if err != nil {
 		log.Fatalf("ReadDirAll failed: %v", err)
@@ -74,6 +78,7 @@ func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 var _ fs.NodeRequestLookuper = (*Dir)(nil)
 
 func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
+	go SingleUpdateMetadataCache()
 	path := n.sk_file.Path + "/" + req.Name
 	gd_file, err := gd.GetFile(path)
 	logger.Debugf("Lookup() IsFolder=%t path=%s", gd_file.IsFolder(), path)
@@ -98,6 +103,7 @@ var _ fs.NodeOpener = (*Dir)(nil)
 
 func (n Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	logger.Debugf("Dir.Open()")
+	go SingleUpdateMetadataCache()
 	resp.Flags |= fuse.OpenNonSeekable
 	return &DirHandle{
 		sk_file: n.sk_file,
