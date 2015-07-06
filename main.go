@@ -185,7 +185,7 @@ func main() {
 		dpf = skicka.DebugNoPrint
 	}
 
-	gd, err := gdrive.New(config.Upload.Bytes_per_second_limit,
+	gd, err = gdrive.New(config.Upload.Bytes_per_second_limit,
 		config.Download.Bytes_per_second_limit, dpf, client,
 		*metadataCacheFilename, quiet)
 	if err != nil {
