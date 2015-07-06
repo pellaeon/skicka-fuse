@@ -69,11 +69,14 @@ func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fus
 		log.Panicf("FileHandle Read GetFileContents failed: %v", err)
 	}
 	n, err := reader.Read(buf)
-	if err != nil {
-		log.Panicf("Filehandle Read reader.Read failed: %v", err)
+	reader.Close()
+	if err != nil && n == 0 {
+		log.Panicf("Filehandle Read failed: %v", err)
+		return err
+	} else {
+		resp.Data = buf
+		return nil
 	}
-	resp.Data = buf[:n]
-	return err
 }
 
 var _ fs.NodeAccesser = (*File)(nil)
