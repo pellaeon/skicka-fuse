@@ -103,3 +103,10 @@ func (n Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenRes
 		sk_file: n.sk_file,
 	}, nil
 }
+
+var _ fs.NodeAccesser = (*Dir)(nil)
+
+func (d Dir) Access(ctx context.Context, req *fuse.AccessRequest) error {
+	logger.Debugf(d.sk_file.Path + " Access()")
+	return nil
+}

@@ -74,3 +74,10 @@ func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fus
 	resp.Data = buf[:n]
 	return err
 }
+
+var _ fs.NodeAccesser = (*File)(nil)
+
+func (f *File) Access(ctx context.Context, req *fuse.AccessRequest) error {
+	logger.Debugf(f.sk_file.Path + " Access()")
+	return nil
+}
