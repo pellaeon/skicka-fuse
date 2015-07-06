@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -31,7 +30,7 @@ func (n File) Attr(ctx context.Context, attr *fuse.Attr) error {
 	attr.Mtime = n.sk_file.ModTime
 	attr.Ctime = n.sk_file.ModTime
 	attr.Crtime = n.sk_file.ModTime
-	attr.Mode = os.ModeDir | 0755
+	attr.Mode = 0600
 	attr.Nlink = 0
 
 	return nil
