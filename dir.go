@@ -55,7 +55,7 @@ func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	for _, file := range files_in_folder {
 		var de fuse.Dirent
 		de.Name = file.Path[strings.LastIndex(file.Path, "/")+1:]
-		logger.Debugf("ReadDirAll %s - %s", dh.sk_file.Path, de.Name)
+		logger.Debugf("ReadDirAll %s isfolder=%t - %s", dh.sk_file.Path, file.IsFolder(), de.Name)
 		if file.IsFolder() {
 			de.Type = fuse.DT_Dir
 		} else {
@@ -75,8 +75,8 @@ var _ fs.NodeRequestLookuper = (*Dir)(nil)
 
 func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
 	path := n.sk_file.Path + "/" + req.Name
-	logger.Debugf("req.Name= " + req.Name)
-	gd_file, err := n.fs.gd.GetFile(path)
+	gd_file, err := gd.GetFile(path)
+	logger.Debugf("Lookup() IsFolder=%t path=%s", gd_file.IsFolder(), path)
 	if err != nil {
 		log.Panicf("Lookup GetFile failed: %v", err)
 		return nil, fuse.ENOENT
