@@ -222,6 +222,7 @@ var _ fs.FS = (*FS)(nil)
 
 func (f *FS) Root() (fs.Node, error) {
 	gd_file, err := f.gd.GetFile("/")
+	logger.Debugf("Root(): %s", gd_file.Path)
 	if err != nil {
 		logger.Errorf("FS Root() : %v", err)
 	}
@@ -258,10 +259,12 @@ type Dir struct {
 }
 
 func (n Dir) Attr(ctx context.Context, attr *fuse.Attr) error {
+	logger.Debugf("%s .Attr()", n.sk_file.Path)
 	var sum uint64
 	for _, c := range n.sk_file.Id {
 		sum += uint64(c)
 	}
+	logger.Debugf("%s .Attr() Id= %s", n.sk_file.Path, n.sk_file.Id)
 	attr.Inode = sum
 	attr.Size = 4096 // XXX
 	attr.Blocks = 0
@@ -284,7 +287,6 @@ var _ fs.HandleReadDirAller = (*DirHandle)(nil)
 func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	logger.Debugf("ReadDirAll %s", dh.sk_file.Path)
 	files_in_folder, err := gd.GetFilesInFolder(dh.sk_file.Path)
-	logger.Debugf("ReadDirAll %+v", files_in_folder)
 	if err != nil {
 		log.Fatalf("ReadDirAll failed: %v", err)
 	}
@@ -292,6 +294,7 @@ func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	for _, file := range files_in_folder {
 		var de fuse.Dirent
 		de.Name = file.Path[strings.LastIndex(file.Path, "/")+1:]
+		logger.Debugf("ReadDirAll %s - %s", dh.sk_file.Path, de.Name)
 		if file.IsFolder() {
 			de.Type = fuse.DT_Dir
 		} else {
@@ -315,6 +318,7 @@ type File struct {
 }
 
 func (n File) Attr(ctx context.Context, attr *fuse.Attr) error {
+	logger.Debugf("%s.Attr()", n.sk_file.Path)
 	sum := uint64(0)
 	for _, c := range n.sk_file.Id {
 		sum += uint64(c)
@@ -339,7 +343,7 @@ func (n *Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.Lo
 	logger.Debugf("req.Name= " + req.Name)
 	gd_file, err := n.fs.gd.GetFile(path)
 	if err != nil {
-		log.Fatalf("Lookup GetFile failed: %v", err)
+		log.Panicf("Lookup GetFile failed: %v", err)
 		return nil, fuse.ENOENT
 	}
 	if gd_file.IsFolder() {
@@ -389,14 +393,15 @@ func (fh *FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) err
 var _ fs.HandleReader = (*FileHandle)(nil)
 
 func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	logger.Debugf("FileHandle Read()")
 	buf := make([]byte, req.Size)
 	reader, err := gd.GetFileContents(fh.sk_file)
 	if err != nil {
-		log.Fatalf("FileHandle Read GetFileContents failed: %v", err)
+		log.Panicf("FileHandle Read GetFileContents failed: %v", err)
 	}
 	n, err := reader.Read(buf)
 	if err != nil {
-		log.Fatalf("Filehandle Read reader.Read failed: %v", err)
+		log.Panicf("Filehandle Read reader.Read failed: %v", err)
 	}
 	resp.Data = buf[:n]
 	return err
