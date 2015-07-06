@@ -275,10 +275,16 @@ func (n Dir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	return nil
 }
 
-var _ fs.HandleReadDirAller = (*Dir)(nil)
+type DirHandle struct {
+	sk_file *gdrive.File
+}
 
-func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	files_in_folder, err := d.fs.gd.GetFilesInFolder(d.sk_file.Path)
+var _ fs.HandleReadDirAller = (*DirHandle)(nil)
+
+func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	logger.Debugf("ReadDirAll %s", dh.sk_file.Path)
+	files_in_folder, err := gd.GetFilesInFolder(dh.sk_file.Path)
+	logger.Debugf("ReadDirAll %+v", files_in_folder)
 	if err != nil {
 		log.Fatalf("ReadDirAll failed: %v", err)
 	}
@@ -354,6 +360,16 @@ var _ fs.NodeOpener = (*File)(nil)
 func (n File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	resp.Flags |= fuse.OpenNonSeekable
 	return &FileHandle{
+		sk_file: n.sk_file,
+	}, nil
+}
+
+var _ fs.NodeOpener = (*Dir)(nil)
+
+func (n Dir) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	logger.Debugf("Dir.Open()")
+	resp.Flags |= fuse.OpenNonSeekable
+	return &DirHandle{
 		sk_file: n.sk_file,
 	}, nil
 }
