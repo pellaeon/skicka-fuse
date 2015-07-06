@@ -74,7 +74,7 @@ func (dh *DirHandle) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 var _ fs.NodeRequestLookuper = (*Dir)(nil)
 
 func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
-	path := req.Name
+	path := n.sk_file.Path + "/" + req.Name
 	logger.Debugf("req.Name= " + req.Name)
 	gd_file, err := n.fs.gd.GetFile(path)
 	if err != nil {
