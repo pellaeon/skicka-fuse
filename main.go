@@ -25,6 +25,8 @@ import (
 ///////////////////////////////////////////////////////////////////////////
 // Global Variables
 
+const BLKSIZE = 4096
+
 var progName = filepath.Base(os.Args[0])
 
 type debugging bool
@@ -227,6 +229,25 @@ func (f *FS) Root() (fs.Node, error) {
 		sk_file: gd_file,
 		fs:      f,
 	}, err
+}
+
+var _ fs.FSStatfser = (*FS)(nil)
+
+func (fs *FS) Statfs(ctx context.Context, req *fuse.StatfsRequest, resp *fuse.StatfsResponse) error {
+	usage, err := fs.gd.GetDriveUsage()
+	if err != nil {
+		logger.Errorf("Statfs() error: %v", err)
+	}
+	resp.Blocks = uint64(usage.Capacity / BLKSIZE)
+	resp.Bfree = uint64((usage.Capacity - usage.Used) / BLKSIZE)
+	resp.Bavail = uint64((usage.Capacity - usage.Used) / BLKSIZE)
+	resp.Files = 9999 //XXX
+	resp.Ffree = 9999 //XXX
+	resp.Bsize = BLKSIZE
+	resp.Namelen = 32767 //http://www.aurelp.com/2014/09/10/what-is-the-maximum-name-length-for-a-file-on-google-drive/
+	resp.Frsize = BLKSIZE
+	req.Respond(resp)
+	return err
 }
 
 var _ fs.Node = (*Dir)(nil)
