@@ -1,7 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"strings"
+	"time"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -42,14 +47,18 @@ var _ fs.NodeOpener = (*File)(nil)
 func (n File) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	resp.Flags |= fuse.OpenNonSeekable
 	return &FileHandle{
-		sk_file: n.sk_file,
+		sk_file:       n.sk_file,
+		url:           "",
+		urlLastUpdate: time.Unix(0, 0),
 	}, nil
 }
 
 var _ fs.Handle = (*FileHandle)(nil)
 
 type FileHandle struct {
-	sk_file *gdrive.File
+	sk_file       *gdrive.File
+	url           string // file download URL
+	urlLastUpdate time.Time
 }
 
 var _ fs.HandleReleaser = (*FileHandle)(nil)
@@ -58,13 +67,68 @@ func (fh *FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) err
 	return nil
 }
 
+func (fh *FileHandle) GetContent() (io.ReadCloser, error) {
+	if time.Since(fh.urlLastUpdate) > 3*time.Hour {
+		logger.Debugf("fh.GetContent url expired: %s", fh.sk_file.Path)
+		driveFile, err := gd.GetFileById(fh.sk_file.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		url := driveFile.DownloadUrl
+		if url == "" {
+			// Google Docs files can't be downloaded directly via DownloadUrl,
+			// but can be exported to another format that can be downloaded.
+
+			// Docs, Sheets, and Slides can be downloaded into .docx, .xls,
+			// and .pptx formats, respectively. This may be a bit confusing since
+			// they won't have that suffix locally.
+			for mt, u := range driveFile.ExportLinks {
+				if strings.HasPrefix(mt, "application/vnd.openxmlformats-officedocument") {
+					url = u
+					break
+				}
+			}
+			// Google Drawings can be downloaded in SVG form.
+			if url == "" {
+				if u, ok := driveFile.ExportLinks["image/svg+xml"]; ok {
+					url = u
+				}
+			}
+			// Otherwise we seem to be out of luck.
+			if url == "" {
+				return nil, fmt.Errorf("%s: unable to download Google Docs file", fh.sk_file.Path)
+			}
+		}
+		fh.url = url
+		fh.urlLastUpdate = time.Now()
+	}
+	for try := 0; ; try++ {
+		request, err := http.NewRequest("GET", fh.url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := gd.Client.Do(request)
+
+		switch gd.HandleHTTPResponse(resp, err, try) {
+		case gdrive.Success:
+			// Rate-limit the download, if required.
+			return gdrive.MakeLimitedDownloadReader(resp.Body), nil
+		case gdrive.Fail:
+			return nil, err
+		case gdrive.Retry:
+		}
+	}
+}
+
 var _ fs.HandleReader = (*FileHandle)(nil)
 
 func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	logger.Debugf("FileHandle Read()")
 	go SingleUpdateMetadataCache()
 	buf := make([]byte, req.Size)
-	reader, err := gd.GetFileContents(fh.sk_file)
+	reader, err := fh.GetContent()
 	if err != nil {
 		log.Panicf("FileHandle Read GetFileContents failed: %v", err)
 	}
