@@ -83,7 +83,6 @@ func (n Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.Loo
 	gd_file, err := gd.GetFile(path)
 	logger.Debugf("Lookup() IsFolder=%t path=%s", gd_file.IsFolder(), path)
 	if err != nil {
-		log.Panicf("Lookup GetFile failed: %v", err)
 		return nil, fuse.ENOENT
 	}
 	if gd_file.IsFolder() {

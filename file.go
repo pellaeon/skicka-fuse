@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -130,12 +129,13 @@ func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fus
 	buf := make([]byte, req.Size)
 	reader, err := fh.GetContent()
 	if err != nil {
-		log.Panicf("FileHandle Read GetFileContents failed: %v", err)
+		logger.Errorf("FileHandle Read GetContent failed: %v", err)
+		return err
 	}
 	n, err := reader.Read(buf)
 	reader.Close()
 	if err != nil && n == 0 {
-		log.Panicf("Filehandle Read failed: %v", err)
+		loger.Errorf("Filehandle Read failed: %v", err)
 		return err
 	} else {
 		resp.Data = buf
