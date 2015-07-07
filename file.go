@@ -124,7 +124,6 @@ func (fh *FileHandle) GetContent() (io.ReadCloser, error) {
 var _ fs.HandleReader = (*FileHandle)(nil)
 
 func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	logger.Debugf("FileHandle Read()")
 	go SingleUpdateMetadataCache()
 	buf := make([]byte, req.Size)
 	reader, err := fh.GetContent()
@@ -135,10 +134,14 @@ func (fh *FileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fus
 	n, err := reader.Read(buf)
 	reader.Close()
 	if err != nil && n == 0 {
-		loger.Errorf("Filehandle Read failed: %v", err)
+		logger.Errorf("Filehandle Read failed: %v", err)
 		return err
 	} else {
 		resp.Data = buf
+		logger.Debugf("FileHandle Read() %d bytes", n)
+		if int64(n) != fh.sk_file.FileSize {
+			logger.Warningf("FileHandle Read() %d bytes but file has %d bytes", n, fh.sk_file.FileSize)
+		}
 		return nil
 	}
 }
